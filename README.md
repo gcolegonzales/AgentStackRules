@@ -1,29 +1,16 @@
 # AgentStackRules
 
-A centralized rulebook for AI coding agents. Define best-practice rules per technology stack in one shared repository, then configure any project to reference them. Supports Claude Code, GitHub Copilot, and Cursor.
+Shared, centralized rules for AI coding agents (Claude Code, GitHub Copilot, Cursor). One repo holds all the rules. Every project points to it with a small config file.
 
-## How It Works
+---
 
-This repository contains markdown rule files organized by technology. A CLI tool (`agent-rules init`) configures any project to reference the relevant rules. The rulebook stays centralized here; each project gets a lightweight config file pointing back to it.
+## Quick Start
 
-**AI agents resolve rules at runtime like this:**
+There are two steps: **install the CLI** (once per machine), then **configure each project**.
 
-1. Agent reads its config file (`CLAUDE.md`, `.cursorrules`, or `.github/copilot-instructions.md`)
-2. That file tells the agent to read `ai-stack.config.json` if it exists
-3. Agent reads `ai-stack.config.json` for the project's stack and rule paths
-4. Agent reads `.agent-rules-root` for the local path to this rulebook clone
-5. Agent combines the paths and reads the rule files
+### Step 1: Install the CLI (once per machine)
 
-## One-Time Machine Setup
-
-Every developer does this once on their machine.
-
-### Prerequisites
-
-- [Node.js](https://nodejs.org/) (v18 or later)
-- Git
-
-### Steps
+You need [Node.js](https://nodejs.org/) v18+ and Git.
 
 ```bash
 git clone https://github.com/gcolegonzales/AgentStackRules.git
@@ -32,63 +19,79 @@ npm install
 npm link
 ```
 
-This registers `agent-rules` as a global command on your machine.
+That's it. You now have the `agent-rules` command available globally.
 
-> **Windows users:** `npm link` creates symlinks, which may require running the terminal as **Administrator** or enabling **Developer Mode** in Windows Settings > For Developers. This is a one-time system setting.
+**Windows note:** `npm link` creates symlinks. You may need to either run your terminal as **Administrator** or enable **Developer Mode** (Windows Settings > For Developers). This is a one-time system setting.
 
-## Per-Project Setup
+### Step 2: Configure a project
 
-Run this from inside any project directory you want to configure:
+Open a terminal in the root of the project you want to set up:
 
 ```bash
-cd /path/to/your-project
+cd C:\Users\you\Code\your-project
 agent-rules init
 ```
 
-The script will:
+The script walks you through selecting your frontend, backend, database, versions, and libraries. When it finishes, it writes config files into the project. Commit them and you're done.
 
-1. Show a welcome message explaining what it does
-2. Ask you to select your frontend framework, backend framework, and database
-3. Ask about versions and libraries for each selection
-4. Confirm your choices
-5. Write configuration files into the project
+### Step 3: Other developers on the same project
 
-### Files Written to Your Project
+Once the first person commits the config, everyone else just needs to:
 
-| File | Purpose | Committed to git? |
-|---|---|---|
-| `ai-stack.config.json` | Declares the project's stack and rule paths | **Yes** |
-| `.agent-rules-root` | Stores the absolute path to your local rulebook clone | **No** (auto-gitignored) |
-| `CLAUDE.md` | Tells Claude Code to read the rulebook | **Yes** |
-| `.cursorrules` | Tells Cursor to read the rulebook | **Yes** |
-| `.github/copilot-instructions.md` | Tells GitHub Copilot to read the rulebook | **Yes** |
+1. Have the CLI installed (Step 1 above)
+2. Pull the latest project code
+3. Run `agent-rules init` in the project root
+4. Choose **"Just set up my local environment"** when prompted
 
-The agent config files (`CLAUDE.md`, `.cursorrules`, `.github/copilot-instructions.md`) use delimited markers (`<!-- RULEBOOK:START -->` / `<!-- RULEBOOK:END -->`). If these files already exist in your project, only the content between the markers is updated — your existing content outside the markers is preserved.
+This writes a local-only file (`.agent-rules-root`) that points to their own clone of this rulebook. Nothing else to commit.
 
-### When the Project Already Has a Config
+### Updating rules
 
-If `ai-stack.config.json` already exists (because a teammate already set it up), the script detects it and asks:
-
-- **Update stack configuration** — re-select technologies and rewrite the config
-- **Just set up my local environment** — only writes `.agent-rules-root` and the agent config blocks (most common for new team members)
-
-## Updating Rules
-
-When rules are updated in this repository:
+When someone merges rule changes into this repo:
 
 ```bash
 cd /path/to/AgentStackRules
 git pull
 ```
 
-That's it. Every project that references the rulebook picks up the changes immediately — no per-project action needed.
+Every project picks up the changes immediately. No re-running init, no per-project action.
+
+---
+
+## What the init script does
+
+When you run `agent-rules init` in a project, it writes these files:
+
+| File | What it does | Committed? |
+|---|---|---|
+| `ai-stack.config.json` | Declares the project's tech stack and which rule files apply | Yes |
+| `.agent-rules-root` | Points to your local clone of this repo (machine-specific) | No (auto-gitignored) |
+| `CLAUDE.md` | Tells Claude Code where to find and how to use the rules | Yes |
+| `.cursorrules` | Tells Cursor where to find and how to use the rules | Yes |
+| `.github/copilot-instructions.md` | Tells GitHub Copilot where to find and how to use the rules | Yes |
+
+If `CLAUDE.md`, `.cursorrules`, or `.github/copilot-instructions.md` already exist in the project, the script only touches content between `<!-- RULEBOOK:START -->` and `<!-- RULEBOOK:END -->` markers. Everything else in those files is left alone.
+
+---
+
+## How agents use the rules
+
+The agent config files (CLAUDE.md, .cursorrules, etc.) tell agents to:
+
+1. Read `.agent-rules-root` to find where the rulebook lives on this machine
+2. Based on the type of work (frontend, backend, database), read the relevant rule files before planning or writing code
+3. Treat those rules as critical instructions
+
+The specific rule file paths are written directly into the agent config so agents know exactly which files to read for each type of work.
+
+---
 
 ## Repository Structure
 
 ```
 AgentStackRules/
 ├── scripts/             # CLI tool
-├── templates/           # Templates for new entries (frontend, backend, database, library, stack)
+├── templates/           # Templates for new rule entries
 ├── frontend/
 │   ├── react/           # rules.md + libraries/
 │   ├── angular/         # rules.md + libraries/
@@ -103,62 +106,42 @@ AgentStackRules/
 └── stacks/              # Combination-specific rules (created on demand)
 ```
 
-### Rule Organization
+### How rules are organized
 
 - **Base rules** live in `rules.md` inside each technology folder
-- **Version-specific rules** are sibling `.md` files (e.g., `dotnet-8.md`) that override or extend the base
-- **Library rules** live in a `libraries/` subfolder under their parent technology
-- **Stack rules** in `stacks/` cover integration concerns for specific technology combinations
+- **Version-specific rules** are sibling `.md` files (e.g., `dotnet-8.md`) that extend the base
+- **Library rules** live in `libraries/` under their parent technology
+- **Stack rules** in `stacks/` cover concerns specific to a frontend + backend combination
 
-## Contributing Rules
+---
 
-### Editing Existing Rules
+## Contributing
 
-1. Find the rule file in the repository structure
-2. Edit the markdown content
+### Editing existing rules
+
+1. Find the rule file in the repo
+2. Edit the markdown
 3. Submit a pull request
 
-### Adding New Technologies, Libraries, or Versions
+### Adding new technologies, libraries, or versions
 
-**Via the init script:** When running `agent-rules init`, you can select "Add New Version" or "Add New Library" at the relevant prompt. The script creates the file from the appropriate template and opens it in your editor.
+**From the init script:** Select "Add New Version" or "Add New Library" at the relevant prompt. The script creates the file from a template and opens it in your editor.
 
-**Manually:** Copy the relevant template from `templates/`, rename it, place it in the correct directory, and fill in the content.
+**Manually:** Copy the relevant template from `templates/`, rename it, place it in the right directory, and fill in the content.
 
 ### Templates
 
-Each category has a template in `templates/` that defines the standard sections:
+Each category has a template in `templates/` that defines the standard sections for consistency:
 
-- `templates/frontend.md` — for new frontend frameworks
-- `templates/backend.md` — for new backend frameworks
-- `templates/database.md` — for new databases
-- `templates/library.md` — for new libraries
-- `templates/stack.md` — for new stack combinations
-
-Always follow the template structure to keep rules consistent across technologies.
+- `templates/frontend.md` — frontend frameworks
+- `templates/backend.md` — backend frameworks
+- `templates/database.md` — databases
+- `templates/library.md` — libraries
+- `templates/stack.md` — stack combinations
 
 ### Governance
 
 - All rule changes go through pull requests
-- PR reviews should verify that rules are safe, non-opinionated, and universally applicable
-- Version files should only be added for technologies where version differences matter
-- The team refines rules over time based on real-world experience
-
-## Workflows
-
-### New developer joins the company
-
-1. Clone this repo and run `npm install && npm link`
-2. For each project: `cd project && agent-rules init` → "Just set up my local environment"
-
-### New project starts
-
-1. `cd new-project && agent-rules init`
-2. Walk through prompts, select stack
-3. Commit the generated files
-4. Teammates pull and run `agent-rules init` for their local setup
-
-### Project changes its stack
-
-1. `cd project && agent-rules init` → "Update stack configuration"
-2. Change selections
-3. Commit the updated `ai-stack.config.json`
+- PR reviews verify rules are safe, non-opinionated, and broadly applicable
+- Version files should only exist for technologies where version differences actually matter
+- Rules are refined over time based on real experience
