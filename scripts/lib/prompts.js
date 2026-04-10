@@ -6,6 +6,49 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 /**
+ * Create a new technology in the rulebook (directory + rules.md + libraries/).
+ */
+async function createNewTechnology(rulebookRoot, category, label) {
+  const techName = await input({ message: `Enter the ${label} name (e.g., vue, fastapi, mongodb):` });
+  if (!techName.trim()) return null;
+
+  const id = techName.trim().toLowerCase().replace(/\s+/g, '-');
+  const techDir = path.join(rulebookRoot, category, id);
+
+  if (fs.existsSync(techDir)) {
+    console.log(`  "${id}" already exists in ${category}/. Select it from the list instead.`);
+    return null;
+  }
+
+  // Create directory structure
+  fs.mkdirSync(techDir, { recursive: true });
+  if (category !== 'database') {
+    fs.mkdirSync(path.join(techDir, 'libraries'), { recursive: true });
+  }
+
+  // Copy template into rules.md
+  const templatePath = path.join(rulebookRoot, 'templates', `${category}.md`);
+  const displayName = toDisplayName(id);
+  let content = `# ${displayName} Rules\n`;
+  if (fs.existsSync(templatePath)) {
+    content = fs.readFileSync(templatePath, 'utf-8').replace(/\{name\}/g, displayName);
+  }
+
+  const rulesPath = path.join(techDir, 'rules.md');
+  fs.writeFileSync(rulesPath, content, 'utf-8');
+  console.log(`  Created: ${category}/${id}/rules.md`);
+  if (category !== 'database') {
+    console.log(`  Created: ${category}/${id}/libraries/`);
+  }
+  openInEditor(rulesPath);
+
+  return {
+    id,
+    path: path.join(category, id),
+  };
+}
+
+/**
  * Create a new version file from template and open in editor.
  */
 async function createNewVersion(rulebookRoot, category, techId) {
@@ -63,17 +106,19 @@ async function createNewLibrary(rulebookRoot, category, techId) {
  */
 async function promptTechnology(rulebookRoot, category, label) {
   const techs = getTechnologies(rulebookRoot, category);
-  if (techs.length === 0) {
-    console.log(`  No ${label} technologies found in rulebook.`);
-    return null;
-  }
 
   const choices = [
     ...techs.map(t => ({ name: toDisplayName(t.id), value: t })),
+    { name: 'Create New', value: '__new__' },
     { name: 'None', value: null },
   ];
 
-  return await select({ message: `Select your ${label}:`, choices });
+  const answer = await select({ message: `Select your ${label}:`, choices });
+
+  if (answer === '__new__') {
+    return await createNewTechnology(rulebookRoot, category, label);
+  }
+  return answer;
 }
 
 /**
