@@ -153,38 +153,35 @@ async function promptVersion(rulebookRoot, category, tech) {
 }
 
 /**
- * Prompt for library selection (multi-select).
+ * Prompt for library selection (multi-select with inline "Add New Library").
+ * If the user selects "Add New Library", create it and re-prompt the full list.
  */
 async function promptLibraries(rulebookRoot, category, tech) {
   if (!hasLibrariesDir(rulebookRoot, category, tech.id)) return [];
 
-  const libs = getLibraries(rulebookRoot, category, tech.id);
-  let selectedLibs = [];
+  while (true) {
+    const libs = getLibraries(rulebookRoot, category, tech.id);
+    const choices = [
+      ...libs.map(l => ({ name: toDisplayName(l.id), value: l })),
+      { name: 'Add New Library', value: '__new__' },
+    ];
 
-  if (libs.length > 0) {
-    const choices = libs.map(l => ({ name: toDisplayName(l.id), value: l }));
-    selectedLibs = await checkbox({
+    const selected = await checkbox({
       message: `Which libraries do you use with ${toDisplayName(tech.id)}?`,
       choices,
     });
+
+    const addNew = selected.some(s => s === '__new__');
+    const selectedLibs = selected.filter(s => s !== '__new__');
+
+    if (addNew) {
+      await createNewLibrary(rulebookRoot, category, tech.id);
+      // Re-prompt with the updated list
+      continue;
+    }
+
+    return selectedLibs;
   }
-
-  // Ask about adding new libraries
-  let addMore = await confirm({
-    message: 'Would you like to add a new library?',
-    default: false,
-  });
-
-  while (addMore) {
-    const newLib = await createNewLibrary(rulebookRoot, category, tech.id);
-    if (newLib) selectedLibs.push(newLib);
-    addMore = await confirm({
-      message: 'Add another library?',
-      default: false,
-    });
-  }
-
-  return selectedLibs;
 }
 
 /**

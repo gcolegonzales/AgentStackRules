@@ -125,7 +125,7 @@ AgentStackRules/
 
 ### Adding new technologies, libraries, or versions
 
-**From the init script:** Select "Add New Version" or "Add New Library" at the relevant prompt. The script creates the file from a template and opens it in your editor.
+**From the init script:** Every selection prompt includes a "Create New" or "Add New" option right in the list. Select it, enter a name, and the script scaffolds the directory and files from a template and opens the rules file in your editor. The list re-appears with your new entry included so you can select it and continue.
 
 **Manually:** Copy the relevant template from `templates/`, rename it, place it in the right directory, and fill in the content.
 
