@@ -1,0 +1,15 @@
+{
+  "name": "agent-rules",
+  "version": "1.0.0",
+  "description": "Centralized AI agent rulebook CLI",
+  "type": "module",
+  "bin": {
+    "agent-rules": "./scripts/init.js"
+  },
+  "scripts": {
+    "test": "node --test scripts/__tests__/discovery.test.js scripts/__tests__/config-builder.test.js scripts/__tests__/writer.test.js"
+  },
+  "dependencies": {
+    "@inquirer/prompts": "^7.0.0"
+  }
+}
