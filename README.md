@@ -2,87 +2,93 @@
 
 Shared, centralized rules for AI coding agents (Claude Code, GitHub Copilot, Cursor). One repo holds all the rules. Every project points to it with a small config file.
 
+This is an **agent-driven** tool. There is no CLI. AI agents read the instructions in this repo and handle setup conversationally.
+
 ---
 
 ## Quick Start
 
-There are two steps: **install the CLI** (once per machine), then **configure each project**.
-
-### Step 1: Install the CLI (once per machine)
-
-You need [Node.js](https://nodejs.org/) v18+ and Git.
+### Step 1: Clone the rulebook (once per machine)
 
 ```bash
 git clone https://github.com/gcolegonzales/AgentStackRules.git
-cd AgentStackRules
-npm install
-npm link
 ```
 
-That's it. You now have the `agent-rules` command available globally.
-
-**Windows note:** `npm link` creates symlinks. You may need to either run your terminal as **Administrator** or enable **Developer Mode** (Windows Settings > For Developers). This is a one-time system setting.
+That's it. No install, no dependencies, no build step.
 
 ### Step 2: Configure a project
 
-Open a terminal in the root of the project you want to set up:
+Open your AI agent (Claude Code, Cursor, or Copilot) **inside the AgentStackRules repo** and ask it to set up a project:
 
-```bash
-cd C:\Users\you\Code\your-project
-agent-rules init
-```
+> "Set up agent-rules for my project at C:\Users\me\Code\my-project"
 
-The script walks you through selecting your frontend, backend, database, versions, and libraries. When it finishes, it writes config files into the project. Commit them and you're done.
+The agent reads `instructions/overview.md`, walks you through selecting your stack, and writes config files into the target project. It's a conversation, not a script.
 
 ### Step 3: Other developers on the same project
 
-Once the first person commits the config, everyone else just needs to:
+Once the first person commits the config files, everyone else just needs to:
 
-1. Have the CLI installed (Step 1 above)
-2. Pull the latest project code
-3. Run `agent-rules init` in the project root
-4. Choose **"Just set up my local environment"** when prompted
+1. Clone this rulebook repo somewhere on their machine
+2. Open their AI agent in the rulebook repo
+3. Ask: "Set up my local environment for the project at [path]"
 
-This writes a local-only file (`.agent-rules-root`) that points to their own clone of this rulebook. Nothing else to commit.
+The agent writes a local-only `.agent-rules-root` file. Nothing else to commit.
 
 ### Updating rules
 
 When someone merges rule changes into this repo:
 
 ```bash
-cd /path/to/AgentStackRules
+cd AgentStackRules
 git pull
 ```
 
-Every project picks up the changes immediately. No re-running init, no per-project action.
+Every project picks up the changes immediately. No per-project action needed.
 
 ---
 
-## What the init script does
+## How It Works
 
-When you run `agent-rules init` in a project, it writes these files:
+### Two repos, clear roles
+
+- **AgentStackRules** (this repo): Source of truth for all rules. Contains agent instructions, a write-config utility script, rule markdown files, and templates. Cloned once per dev machine.
+- **Any consuming project**: Gets a small config file (`ai-stack.config.json`) that declares its stack, plus a local-only file (`.agent-rules-root`) that tells agents where the rulebook lives on this machine.
+
+### What gets written into a project
 
 | File | What it does | Committed? |
 |---|---|---|
-| `ai-stack.config.json` | Declares the project's tech stack and which rule files apply | Yes |
+| `ai-stack.config.json` | Declares the project's tech stack and rule file paths | Yes |
 | `.agent-rules-root` | Points to your local clone of this repo (machine-specific) | No (auto-gitignored) |
-| `CLAUDE.md` | Tells Claude Code where to find and how to use the rules | Yes |
-| `.cursorrules` | Tells Cursor where to find and how to use the rules | Yes |
-| `.github/copilot-instructions.md` | Tells GitHub Copilot where to find and how to use the rules | Yes |
+| `CLAUDE.md` | Tells Claude Code which rule files to read | Yes |
+| `.cursorrules` | Tells Cursor which rule files to read | Yes |
+| `.github/copilot-instructions.md` | Tells GitHub Copilot which rule files to read | Yes |
 
-If `CLAUDE.md`, `.cursorrules`, or `.github/copilot-instructions.md` already exist in the project, the script only touches content between `<!-- RULEBOOK:START -->` and `<!-- RULEBOOK:END -->` markers. Everything else in those files is left alone.
+If `CLAUDE.md`, `.cursorrules`, or `.github/copilot-instructions.md` already exist, only content between `<!-- RULEBOOK:START -->` and `<!-- RULEBOOK:END -->` markers is touched. Everything else is preserved.
 
----
+### How agents use the rules
 
-## How agents use the rules
-
-The agent config files (CLAUDE.md, .cursorrules, etc.) tell agents to:
+The agent config files tell agents to:
 
 1. Read `.agent-rules-root` to find where the rulebook lives on this machine
 2. Based on the type of work (frontend, backend, database), read the relevant rule files before planning or writing code
-3. Treat those rules as critical instructions
+3. Treat project-specific rules as primary, generic rules as secondary reference
 
-The specific rule file paths are written directly into the agent config so agents know exactly which files to read for each type of work.
+All rule file paths are pre-resolved and written directly into the agent config, so agents know exactly which files to read.
+
+---
+
+## Two Types of Rules
+
+### Generic rules (`frontend/`, `backend/`, `database/`)
+
+Universal best practices per technology. These apply to any project using that technology.
+
+### Project-specific rules (`projects/`)
+
+How a specific project actually uses those technologies — observed patterns, conventions, architecture decisions. Generated by scanning an existing codebase.
+
+**Project-specific rules always take priority over generic rules.** Generic rules fill gaps where the project is silent.
 
 ---
 
@@ -90,28 +96,47 @@ The specific rule file paths are written directly into the agent config so agent
 
 ```
 AgentStackRules/
-├── scripts/             # CLI tool
-├── templates/           # Templates for new rule entries
+├── instructions/        # Agent instructions (start here)
+├── scripts/             # write-config.js utility
+├── templates/           # Section templates for new entries
 ├── frontend/
 │   ├── react/           # rules.md + libraries/
 │   ├── angular/         # rules.md + libraries/
 │   ├── angularjs/       # rules.md + libraries/
 │   └── razor-pages/     # rules.md + libraries/
 ├── backend/
-│   ├── dotnet/          # rules.md + version overlays (dotnet-6.md, etc.) + libraries/
+│   ├── dotnet/          # rules.md + version overlays + libraries/
 │   └── node-typescript/ # rules.md + libraries/
 ├── database/
 │   ├── sql-server/      # rules.md
 │   └── postgresql/      # rules.md
-└── stacks/              # Combination-specific rules (created on demand)
+├── stacks/              # Stack combination rules (on demand)
+└── projects/            # Project-specific rules (on demand)
 ```
 
 ### How rules are organized
 
-- **Base rules** live in `rules.md` inside each technology folder
-- **Version-specific rules** are sibling `.md` files (e.g., `dotnet-8.md`) that extend the base
-- **Library rules** live in `libraries/` under their parent technology
+- **Base rules** live in `rules.md` inside each framework folder
+- **Version-specific rules** are sibling `.md` files (e.g., `dotnet-8.md`) that extend the base — they only contain what's different in that version
+- **Library rules** live in `libraries/` under their parent framework
 - **Stack rules** in `stacks/` cover concerns specific to a frontend + backend combination
+- **Project rules** in `projects/` mirror the generic structure but describe how a real project uses each technology
+
+---
+
+## Agent Instructions
+
+The `instructions/` directory contains focused instruction files that agents read on demand:
+
+| File | When to read it |
+|---|---|
+| `overview.md` | Entry point — routes to the right instruction file |
+| `new-project-setup.md` | Setting up a new project |
+| `existing-project-scan.md` | Scanning an existing codebase to generate project-specific rules |
+| `creating-entries.md` | Adding new frameworks, libraries, or versions to the rulebook |
+| `config-format.md` | Understanding or troubleshooting the config |
+| `agent-config-files.md` | Understanding how agent config files work |
+| `directory-structure.md` | Understanding the repo layout |
 
 ---
 
@@ -125,13 +150,17 @@ AgentStackRules/
 
 ### Adding new technologies, libraries, or versions
 
-**From the init script:** Every selection prompt includes a "Create New" or "Add New" option right in the list. Select it, enter a name, and the script scaffolds the directory and files from a template and opens the rules file in your editor. The list re-appears with your new entry included so you can select it and continue.
+Ask your AI agent to add a new entry while working in this repo:
 
-**Manually:** Copy the relevant template from `templates/`, rename it, place it in the right directory, and fill in the content.
+> "Add a new frontend framework called Vue to the rulebook"
+
+The agent reads `instructions/creating-entries.md` and walks you through it, writing real best-practice content (not empty templates).
+
+You can also add entries manually — copy the relevant template from `templates/`, place it in the right directory, and fill in the content.
 
 ### Templates
 
-Each category has a template in `templates/` that defines the standard sections for consistency:
+Each category has a template in `templates/` that defines the standard sections:
 
 - `templates/frontend.md` — frontend frameworks
 - `templates/backend.md` — backend frameworks
